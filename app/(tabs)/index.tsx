@@ -7,9 +7,8 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { Colors } from '@/constants/Colors';
 import authService from '@/services/authService';
 import supabaseService from '@/services/supabaseService';
-import healthKitService from '@/services/healthKitService';
 import geminiService from '@/services/geminiService';
-import { DailySummary, HealthMetric } from '@/types/health';
+import { DailySummary } from '@/types/health';
 
 export default function DashboardScreen() {
   const colorScheme = useColorScheme();
@@ -150,7 +149,7 @@ export default function DashboardScreen() {
       {/* Today's Metrics */}
       <ThemedView style={styles.section}>
         <ThemedText type="subtitle" style={styles.sectionTitle}>
-          Today's Metrics
+          Today&apos;s Metrics
         </ThemedText>
         <ThemedView style={styles.metricsGrid}>
           <ThemedView style={[styles.metricCard, { backgroundColor: Colors[colorScheme ?? 'light'].tint + '20' }]}>

@@ -3,18 +3,27 @@ import { SUPABASE_URL, SUPABASE_ANON_KEY } from '@/utils/constants';
 import { User, HealthDocument, HealthMetric, DailySummary } from '@/types/health';
 
 class SupabaseService {
-  private supabase;
+  private client;
 
   constructor() {
     if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
       console.warn('Supabase credentials not configured. Please set EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY');
     }
-    this.supabase = createClient(SUPABASE_URL || '', SUPABASE_ANON_KEY || '');
+    this.client = createClient(SUPABASE_URL || '', SUPABASE_ANON_KEY || '');
+  }
+
+  // Auth methods
+  getAuth() {
+    return this.client.auth;
+  }
+
+  get supabase() {
+    return this.client;
   }
 
   // User methods
   async createUser(appleId: string): Promise<User | null> {
-    const { data, error } = await this.supabase
+    const { data, error } = await this.client
       .from('users')
       .insert({ apple_id: appleId })
       .select()
@@ -28,7 +37,7 @@ class SupabaseService {
   }
 
   async getUserByAppleId(appleId: string): Promise<User | null> {
-    const { data, error } = await this.supabase
+    const { data, error } = await this.client
       .from('users')
       .select('*')
       .eq('apple_id', appleId)
@@ -43,7 +52,7 @@ class SupabaseService {
   // Document methods
   async uploadDocument(file: Blob, fileName: string, userId: string): Promise<string | null> {
     const filePath = `${userId}/${Date.now()}-${fileName}`;
-    const { data, error } = await this.supabase.storage
+    const { data, error } = await this.client.storage
       .from('health-documents')
       .upload(filePath, file);
 
@@ -55,7 +64,7 @@ class SupabaseService {
   }
 
   async saveHealthDocument(document: Omit<HealthDocument, 'id' | 'createdAt'>): Promise<HealthDocument | null> {
-    const { data, error } = await this.supabase
+    const { data, error } = await this.client
       .from('health_documents')
       .insert({
         user_id: document.userId,
@@ -75,7 +84,7 @@ class SupabaseService {
   }
 
   async getHealthDocuments(userId: string): Promise<HealthDocument[]> {
-    const { data, error } = await this.supabase
+    const { data, error } = await this.client
       .from('health_documents')
       .select('*')
       .eq('user_id', userId)
@@ -90,7 +99,7 @@ class SupabaseService {
 
   // Health metrics methods
   async saveHealthMetric(metric: Omit<HealthMetric, 'id'>): Promise<HealthMetric | null> {
-    const { data, error } = await this.supabase
+    const { data, error } = await this.client
       .from('health_metrics')
       .insert({
         user_id: metric.userId,
@@ -110,7 +119,7 @@ class SupabaseService {
   }
 
   async saveHealthMetricsBatch(metrics: Omit<HealthMetric, 'id'>[]): Promise<boolean> {
-    const { error } = await this.supabase
+    const { error } = await this.client
       .from('health_metrics')
       .insert(
         metrics.map(m => ({
@@ -130,7 +139,7 @@ class SupabaseService {
   }
 
   async getHealthMetrics(userId: string, startDate?: Date, endDate?: Date): Promise<HealthMetric[]> {
-    let query = this.supabase
+    let query = this.client
       .from('health_metrics')
       .select('*')
       .eq('user_id', userId);
@@ -153,7 +162,7 @@ class SupabaseService {
 
   // Daily summary methods
   async saveDailySummary(summary: Omit<DailySummary, 'id' | 'createdAt'>): Promise<DailySummary | null> {
-    const { data, error } = await this.supabase
+    const { data, error } = await this.client
       .from('daily_summaries')
       .insert({
         user_id: summary.userId,
@@ -172,7 +181,7 @@ class SupabaseService {
   }
 
   async getLatestDailySummary(userId: string): Promise<DailySummary | null> {
-    const { data, error } = await this.supabase
+    const { data, error } = await this.client
       .from('daily_summaries')
       .select('*')
       .eq('user_id', userId)
@@ -187,7 +196,7 @@ class SupabaseService {
   }
 
   async getDailySummaries(userId: string, limit: number = 7): Promise<DailySummary[]> {
-    const { data, error } = await this.supabase
+    const { data, error } = await this.client
       .from('daily_summaries')
       .select('*')
       .eq('user_id', userId)

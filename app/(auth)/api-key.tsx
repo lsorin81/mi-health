@@ -75,7 +75,7 @@ export default function ApiKeyScreen() {
           </ThemedText>
           
           <ThemedText style={styles.description}>
-            To analyze your health documents and generate insights, Mi-Health needs access to Google's Gemini AI.
+            To analyze your health documents and generate insights, Mi-Health needs access to Google&apos;s Gemini AI.
           </ThemedText>
 
           <ThemedView style={styles.steps}>
@@ -89,7 +89,7 @@ export default function ApiKeyScreen() {
               2. Sign in with your Google account
             </ThemedText>
             <ThemedText style={styles.step}>
-              3. Click "Get API key" in the left sidebar
+              3. Click &quot;Get API key&quot; in the left sidebar
             </ThemedText>
             <ThemedText style={styles.step}>
               4. Create a new API key or use an existing one

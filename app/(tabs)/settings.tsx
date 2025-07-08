@@ -126,8 +126,8 @@ export default function SettingsScreen() {
             <ThemedView style={styles.userInfo}>
               <IconSymbol name="person.circle.fill" size={48} color={Colors[colorScheme ?? 'light'].tint} />
               <ThemedView style={styles.userDetails}>
-                <ThemedText style={styles.userName}>Apple User</ThemedText>
-                <ThemedText style={styles.userId}>ID: {user?.appleId?.substring(0, 8)}...</ThemedText>
+                <ThemedText style={styles.userName}>{user?.email || 'User'}</ThemedText>
+                <ThemedText style={styles.userId}>ID: {user?.id?.substring(0, 8)}...</ThemedText>
               </ThemedView>
             </ThemedView>
           </ThemedView>

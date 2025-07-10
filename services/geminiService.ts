@@ -9,9 +9,17 @@ class GeminiService {
   private genAI: GoogleGenerativeAI | null = null;
 
   async initialize(): Promise<boolean> {
-    const apiKey = await storageService.getGeminiApiKey();
-    if (!apiKey) {
-      console.error('Gemini API key not found');
+    // Use environment API key if available
+    const apiKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY || await storageService.getGeminiApiKey();
+    
+    if (!apiKey || apiKey === 'your-gemini-api-key-here') {
+      // Development bypass - skip API key initialization
+      if (__DEV__ && process.env.EXPO_PUBLIC_DEV_BYPASS_AUTH === 'true') {
+        console.log('Development mode: Bypassing Gemini API initialization');
+        return true;
+      }
+      
+      console.error('Gemini API key not found or not configured');
       return false;
     }
 
@@ -21,6 +29,29 @@ class GeminiService {
 
   async processPDF(pdfUri: string, fileName: string): Promise<GeminiPDFResponse | null> {
     try {
+      // Development bypass - return mock data
+      if (__DEV__ && process.env.EXPO_PUBLIC_DEV_BYPASS_AUTH === 'true') {
+        console.log('Development mode: Returning mock PDF data');
+        return {
+          extractedText: 'Mock health report extracted',
+          normalizedData: {
+            patientInfo: {
+              name: 'Dev User',
+              dateOfBirth: '1990-01-01',
+              patientId: 'DEV123'
+            },
+            testDate: new Date().toISOString(),
+            provider: 'Mock Health Lab',
+            bloodWork: {
+              glucose: { value: 95, unit: 'mg/dL', reference: '70-100 mg/dL' },
+              cholesterolTotal: { value: 180, unit: 'mg/dL', reference: '<200 mg/dL' },
+              hemoglobin: { value: 14.5, unit: 'g/dL', reference: '12-16 g/dL' }
+            }
+          },
+          confidence: 0.95
+        };
+      }
+
       if (!this.genAI) {
         const initialized = await this.initialize();
         if (!initialized) return null;
@@ -83,6 +114,19 @@ class GeminiService {
     documents: any[]
   }): Promise<{ summaryText: string; keyInsights: any[] } | null> {
     try {
+      // Development bypass - return mock summary
+      if (__DEV__ && process.env.EXPO_PUBLIC_DEV_BYPASS_AUTH === 'true') {
+        console.log('Development mode: Returning mock daily summary');
+        return {
+          summaryText: 'Your health metrics look good today! Keep up the healthy habits.',
+          keyInsights: [
+            'Your glucose levels are within normal range',
+            'Blood pressure is stable',
+            'Consider increasing daily water intake'
+          ]
+        };
+      }
+
       if (!this.genAI) {
         const initialized = await this.initialize();
         if (!initialized) return null;

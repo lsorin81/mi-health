@@ -104,6 +104,19 @@ class AuthService {
   }
 
   async getCurrentUser(): Promise<User | null> {
+    // Development bypass for authentication
+    if (__DEV__ && process.env.EXPO_PUBLIC_DEV_BYPASS_AUTH === 'true') {
+      // Return a mock user for development with valid UUID
+      return {
+        id: '123e4567-e89b-12d3-a456-426614174000',
+        email: 'dev@mihealth.test',
+        auth_provider: 'email',
+        auth_id: '123e4567-e89b-12d3-a456-426614174001',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      } as User;
+    }
+
     // Check for Supabase session first
     const session = await this.getSupabaseSession();
     if (session && session.user) {
@@ -121,6 +134,16 @@ class AuthService {
 
 
   async hasGeminiApiKey(): Promise<boolean> {
+    // Check if we have an environment API key first
+    if (process.env.EXPO_PUBLIC_GEMINI_API_KEY && process.env.EXPO_PUBLIC_GEMINI_API_KEY !== 'your-gemini-api-key-here') {
+      return true;
+    }
+    
+    // Development bypass for API key requirement
+    if (__DEV__ && process.env.EXPO_PUBLIC_DEV_BYPASS_AUTH === 'true') {
+      return true;
+    }
+    
     const apiKey = await storageService.getGeminiApiKey();
     return !!apiKey;
   }

@@ -64,6 +64,13 @@ class SupabaseService {
   }
 
   async saveHealthDocument(document: Omit<HealthDocument, 'id' | 'createdAt'>): Promise<HealthDocument | null> {
+    console.log('💾 Attempting to save health document to Supabase...');
+    console.log('👤 User ID:', document.userId);
+    console.log('📄 File name:', document.fileName);
+    console.log('🔗 File URL:', document.fileUrl);
+    console.log('📊 Has extracted text:', !!document.geminiExtractedText);
+    console.log('📈 Has normalized data:', !!document.normalizedData);
+    
     const { data, error } = await this.client
       .from('health_documents')
       .insert({
@@ -77,11 +84,51 @@ class SupabaseService {
       .single();
 
     if (error) {
-      console.error('Error saving health document:', error);
+      console.error('❌ Error saving health document:', error);
+      console.error('🔍 Error details:', JSON.stringify(error, null, 2));
       return null;
     }
+    
+    console.log('✅ Health document saved successfully');
     return data;
   }
+
+  async saveHealthMetrics(metrics: Array<{
+    userId: string;
+    metricType: string;
+    value: number;
+    unit: string;
+    recordedAt: Date;
+    source: string;
+  }>): Promise<boolean> {
+    console.log('💾 Attempting to save health metrics to Supabase...');
+    console.log('📊 Number of metrics:', metrics.length);
+    
+    const { data, error } = await this.client
+      .from('health_metrics')
+      .insert(
+        metrics.map(metric => ({
+          user_id: metric.userId,
+          metric_type: metric.metricType,
+          value: metric.value,
+          unit: metric.unit,
+          recorded_at: metric.recordedAt.toISOString(),
+          source: metric.source,
+        }))
+      )
+      .select();
+
+    if (error) {
+      console.error('❌ Error saving health metrics:', error);
+      console.error('🔍 Error details:', JSON.stringify(error, null, 2));
+      return false;
+    }
+    
+    console.log('✅ Health metrics saved successfully to database!');
+    console.log(`📊 Saved ${data?.length || 0} metrics:`, data?.map(d => `${d.metric_type}=${d.value}${d.unit}`).join(', '));
+    return true;
+  }
+
 
   async getHealthDocuments(userId: string): Promise<HealthDocument[]> {
     const { data, error } = await this.client

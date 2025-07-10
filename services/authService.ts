@@ -98,22 +98,25 @@ class AuthService {
     return session;
   }
 
+
+
   async signOut(): Promise<void> {
     await supabaseService.getAuth().signOut();
     await storageService.clearAll();
   }
 
   async getCurrentUser(): Promise<User | null> {
-    // Development bypass for authentication
+    // Development bypass for authentication - use real user from database
     if (__DEV__ && process.env.EXPO_PUBLIC_DEV_BYPASS_AUTH === 'true') {
-      // Return a mock user for development with valid UUID
+      console.log('🔧 Development mode: Using real user data');
+      
       return {
-        id: '123e4567-e89b-12d3-a456-426614174000',
-        email: 'dev@mihealth.test',
+        id: '8bf9b873-ddc7-4c84-8531-a80dde14f7d7',
+        email: 'lsorin81@gmail.com',
         auth_provider: 'email',
-        auth_id: '123e4567-e89b-12d3-a456-426614174001',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        auth_id: 'cb89f2d1-98e6-4d39-87f8-61e778b5b65c',
+        created_at: '2025-07-10T08:26:17.420111+00:00',
+        updated_at: '2025-07-10T08:26:17.420111+00:00'
       } as User;
     }
 

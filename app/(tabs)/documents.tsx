@@ -6,6 +6,7 @@ import {
   Alert,
   ActivityIndicator,
   RefreshControl,
+  Modal,
 } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
@@ -18,6 +19,8 @@ import authService from '@/services/authService';
 import supabaseService from '@/services/supabaseService';
 import geminiService from '@/services/geminiService';
 import { HealthDocument } from '@/types/health';
+import { ExtractedDataView } from '@/components/ExtractedDataView';
+import { processAndSaveHealthData } from '@/utils/healthDataProcessor';
 
 export default function DocumentsScreen() {
   const colorScheme = useColorScheme();
@@ -26,6 +29,9 @@ export default function DocumentsScreen() {
   const [isUploading, setIsUploading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [hasApiKey, setHasApiKey] = useState(false);
+  const [showExtractedData, setShowExtractedData] = useState(false);
+  const [currentExtractedData, setCurrentExtractedData] = useState<any>(null);
+  const [currentFileName, setCurrentFileName] = useState<string>('');
 
   useEffect(() => {
     loadDocuments();
@@ -39,8 +45,17 @@ export default function DocumentsScreen() {
       const apiKeyExists = await authService.hasGeminiApiKey();
       setHasApiKey(apiKeyExists);
 
-      const docs = await supabaseService.getHealthDocuments(user.id);
-      setDocuments(docs);
+      // For now, since we're not saving documents to the database,
+      // we'll keep the existing local documents and only load any existing ones
+      try {
+        const docs = await supabaseService.getHealthDocuments(user.id);
+        // Only replace if we got actual documents from the database
+        if (docs.length > 0) {
+          setDocuments(docs);
+        }
+      } catch (error) {
+        console.log('📋 No documents in database yet, keeping local documents');
+      }
     } catch (error) {
       console.error('Error loading documents:', error);
     } finally {
@@ -98,31 +113,57 @@ export default function DocumentsScreen() {
         throw new Error('Failed to process PDF with Gemini');
       }
 
-      // Read file for upload to Supabase
-      const fileBlob = await fetch(uri).then(r => r.blob());
+      // Process and save the health data
+      console.log('📄 Processing and saving health data...');
+      
+      const saveSuccess = await processAndSaveHealthData(
+        geminiResponse.normalizedData,
+        user.id,
+        fileName,
+        geminiResponse.extractedText
+      );
 
-      // Upload to Supabase Storage
-      const filePath = await supabaseService.uploadDocument(fileBlob, fileName, user.id);
-      if (!filePath) {
-        throw new Error('Failed to upload document');
-      }
-
-      // Save document metadata
-      const savedDoc = await supabaseService.saveHealthDocument({
-        userId: user.id,
-        fileUrl: filePath,
-        fileName: fileName,
-        geminiExtractedText: geminiResponse.extractedText,
-        normalizedData: geminiResponse.normalizedData,
-      });
-
-      if (savedDoc) {
-        setDocuments([savedDoc, ...documents]);
-        Alert.alert('Success', 'Document uploaded and processed successfully!');
+      if (saveSuccess) {
+        // Create a local document record for UI display
+        const localDoc: HealthDocument = {
+          id: `local-${Date.now()}`,
+          userId: user.id,
+          fileUrl: uri,
+          fileName: fileName,
+          geminiExtractedText: geminiResponse.extractedText,
+          normalizedData: geminiResponse.normalizedData,
+          createdAt: new Date(),
+        };
+        
+        // Add to local documents list
+        setDocuments([localDoc, ...documents]);
+        
+        // Show the extracted data in a nice modal
+        setCurrentExtractedData(geminiResponse.normalizedData);
+        setCurrentFileName(fileName);
+        setShowExtractedData(true);
+        
+        Alert.alert('Success!', 'Document processed and health metrics saved to database!');
+      } else {
+        Alert.alert('Warning', 'Document was processed but some data may not have been saved to the database.');
       }
     } catch (error) {
-      console.error('Error uploading document:', error);
-      Alert.alert('Upload Failed', 'Failed to upload document. Please try again.');
+      console.error('❌ Error uploading document:', error);
+      if (error instanceof Error) {
+        console.error('🔍 Error message:', error.message);
+        console.error('📋 Error stack:', error.stack);
+        
+        if (error.message.includes('row-level security policy')) {
+          Alert.alert(
+            'Authentication Error', 
+            'Unable to save document. In development mode, the mock user cannot save to the database due to security policies.'
+          );
+        } else {
+          Alert.alert('Upload Failed', error.message || 'Failed to upload document. Please try again.');
+        }
+      } else {
+        Alert.alert('Upload Failed', 'Failed to upload document. Please try again.');
+      }
     } finally {
       setIsUploading(false);
     }
@@ -234,6 +275,31 @@ export default function DocumentsScreen() {
           ))
         )}
       </ThemedView>
+
+      {/* Extracted Data Modal */}
+      <Modal
+        visible={showExtractedData}
+        animationType="slide"
+        presentationStyle="pageSheet"
+      >
+        <ThemedView style={styles.modalContainer}>
+          <ThemedView style={styles.modalHeader}>
+            <ThemedText type="title">Extracted Health Data</ThemedText>
+            <TouchableOpacity
+              onPress={() => setShowExtractedData(false)}
+              style={styles.closeButton}
+            >
+              <IconSymbol name="xmark" size={24} color={Colors[colorScheme ?? 'light'].text} />
+            </TouchableOpacity>
+          </ThemedView>
+          {currentExtractedData && (
+            <ExtractedDataView
+              data={currentExtractedData}
+              fileName={currentFileName}
+            />
+          )}
+        </ThemedView>
+      </Modal>
     </ScrollView>
   );
 }
@@ -341,5 +407,21 @@ const styles = StyleSheet.create({
   tagText: {
     fontSize: 10,
     textTransform: 'capitalize',
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: 'transparent',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    paddingTop: 60,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(128, 128, 128, 0.2)',
+  },
+  closeButton: {
+    padding: 8,
   },
 });

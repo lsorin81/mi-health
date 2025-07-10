@@ -12,57 +12,38 @@ class GeminiService {
     // Use environment API key if available
     const apiKey = process.env.EXPO_PUBLIC_GEMINI_API_KEY || await storageService.getGeminiApiKey();
     
-    if (!apiKey || apiKey === 'your-gemini-api-key-here') {
-      // Development bypass - skip API key initialization
-      if (__DEV__ && process.env.EXPO_PUBLIC_DEV_BYPASS_AUTH === 'true') {
-        console.log('Development mode: Bypassing Gemini API initialization');
-        return true;
-      }
-      
+    if (!apiKey) {
       console.error('Gemini API key not found or not configured');
       return false;
     }
 
     this.genAI = new GoogleGenerativeAI(apiKey);
+    console.log('Gemini service initialized successfully');
     return true;
   }
 
-  async processPDF(pdfUri: string, fileName: string): Promise<GeminiPDFResponse | null> {
+  async processPDF(pdfUri: string, _fileName: string): Promise<GeminiPDFResponse | null> {
+    console.log('📄 Starting PDF processing:', { pdfUri, fileName: _fileName });
+    
     try {
-      // Development bypass - return mock data
-      if (__DEV__ && process.env.EXPO_PUBLIC_DEV_BYPASS_AUTH === 'true') {
-        console.log('Development mode: Returning mock PDF data');
-        return {
-          extractedText: 'Mock health report extracted',
-          normalizedData: {
-            patientInfo: {
-              name: 'Dev User',
-              dateOfBirth: '1990-01-01',
-              patientId: 'DEV123'
-            },
-            testDate: new Date().toISOString(),
-            provider: 'Mock Health Lab',
-            bloodWork: {
-              glucose: { value: 95, unit: 'mg/dL', reference: '70-100 mg/dL' },
-              cholesterolTotal: { value: 180, unit: 'mg/dL', reference: '<200 mg/dL' },
-              hemoglobin: { value: 14.5, unit: 'g/dL', reference: '12-16 g/dL' }
-            }
-          },
-          confidence: 0.95
-        };
-      }
-
       if (!this.genAI) {
+        console.log('🔧 Initializing Gemini service...');
         const initialized = await this.initialize();
-        if (!initialized) return null;
+        if (!initialized) {
+          console.error('❌ Failed to initialize Gemini service');
+          return null;
+        }
       }
 
       // Read the PDF file as base64
+      console.log('📖 Reading PDF file as base64...');
       const base64 = await FileSystem.readAsStringAsync(pdfUri, {
         encoding: FileSystem.EncodingType.Base64,
       });
+      console.log('✅ PDF file read successfully, size:', base64.length);
 
       const model = this.genAI!.getGenerativeModel({ model: GEMINI_MODEL });
+      console.log('🤖 Created Gemini model instance');
 
       // Create the PDF part
       const pdfPart = {
@@ -71,25 +52,36 @@ class GeminiService {
           mimeType: 'application/pdf',
         },
       };
+      console.log('📦 Created PDF part for Gemini');
 
       // Send to Gemini with extraction prompt
+      console.log('🚀 Sending PDF to Gemini for processing...');
       const result = await model.generateContent([
         GEMINI_PROMPTS.EXTRACT_HEALTH_DATA,
         pdfPart,
       ]);
 
-      const response = await result.response;
+      const response = result.response;
       const text = response.text();
+      console.log('✅ Received response from Gemini, length:', text.length);
 
       // Parse the JSON response
       let normalizedData: NormalizedHealthData;
       try {
+        console.log('🔍 Parsing Gemini response...');
+        console.log('📝 Raw response preview:', text.substring(0, 200) + '...');
+        
         // Extract JSON from the response (Gemini might include markdown formatting)
         const jsonMatch = text.match(/```json\n?([\s\S]*?)\n?```/) || text.match(/{[\s\S]*}/);
         const jsonString = jsonMatch ? (jsonMatch[1] || jsonMatch[0]) : text;
+        console.log('📋 Extracted JSON string:', jsonString.substring(0, 200) + '...');
+        
         normalizedData = JSON.parse(jsonString);
+        console.log('✅ Successfully parsed JSON response');
+        console.log('📊 Normalized data keys:', Object.keys(normalizedData));
       } catch (parseError) {
-        console.error('Error parsing Gemini response:', parseError);
+        console.error('❌ Error parsing Gemini response:', parseError);
+        console.error('🔍 Full response that failed to parse:', text);
         // Return raw text if JSON parsing fails
         return {
           extractedText: text,
@@ -98,13 +90,18 @@ class GeminiService {
         };
       }
 
-      return {
+      const pdfResponse: GeminiPDFResponse = {
         extractedText: text,
         normalizedData,
         confidence: 0.9,
       };
+      
+      console.log('🎉 PDF processing completed successfully');
+      console.log('📤 Returning result with confidence:', pdfResponse.confidence);
+      
+      return pdfResponse;
     } catch (error) {
-      console.error('Error processing PDF with Gemini:', error);
+      console.error('❌ Error processing PDF with Gemini:', error);
       return null;
     }
   }
@@ -114,22 +111,12 @@ class GeminiService {
     documents: any[]
   }): Promise<{ summaryText: string; keyInsights: any[] } | null> {
     try {
-      // Development bypass - return mock summary
-      if (__DEV__ && process.env.EXPO_PUBLIC_DEV_BYPASS_AUTH === 'true') {
-        console.log('Development mode: Returning mock daily summary');
-        return {
-          summaryText: 'Your health metrics look good today! Keep up the healthy habits.',
-          keyInsights: [
-            'Your glucose levels are within normal range',
-            'Blood pressure is stable',
-            'Consider increasing daily water intake'
-          ]
-        };
-      }
-
       if (!this.genAI) {
         const initialized = await this.initialize();
-        if (!initialized) return null;
+        if (!initialized) {
+          console.error('Failed to initialize Gemini service');
+          return null;
+        }
       }
 
       const model = this.genAI!.getGenerativeModel({ model: GEMINI_MODEL });
@@ -137,7 +124,7 @@ class GeminiService {
       const prompt = `${GEMINI_PROMPTS.GENERATE_DAILY_SUMMARY}\n\nHealth Data:\n${JSON.stringify(healthData, null, 2)}`;
 
       const result = await model.generateContent(prompt);
-      const response = await result.response;
+      const response = result.response;
       const text = response.text();
 
       // Parse the JSON response
@@ -165,7 +152,7 @@ class GeminiService {
       
       // Simple test prompt
       const result = await model.generateContent('Hello, respond with "API key is valid"');
-      const response = await result.response;
+      const response = result.response;
       const text = response.text();
       
       return text.toLowerCase().includes('valid');

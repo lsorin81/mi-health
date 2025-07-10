@@ -1,24 +1,25 @@
 export const STORAGE_KEYS = {
-  GEMINI_API_KEY: 'gemini_api_key',
-  USER_ID: 'user_id',
-  APPLE_USER_ID: 'apple_user_id',
+  GEMINI_API_KEY: "gemini_api_key",
+  USER_ID: "user_id",
+  APPLE_USER_ID: "apple_user_id",
 } as const;
 
-export const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
-export const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
+export const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || "";
+export const SUPABASE_ANON_KEY =
+  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || "";
 
 export const HEALTH_PERMISSIONS = [
-  'StepCount',
-  'HeartRate',
-  'BloodPressureSystolic',
-  'BloodPressureDiastolic',
-  'SleepAnalysis',
-  'ActiveEnergyBurned',
-  'Weight',
-  'BloodGlucose',
+  "StepCount",
+  "HeartRate",
+  "BloodPressureSystolic",
+  "BloodPressureDiastolic",
+  "SleepAnalysis",
+  "ActiveEnergyBurned",
+  "Weight",
+  "BloodGlucose",
 ] as const;
 
-export const GEMINI_MODEL = 'gemini-1.5-pro';
+export const GEMINI_MODEL = "gemini-2.5-pro";
 
 export const GEMINI_PROMPTS = {
   EXTRACT_HEALTH_DATA: `
@@ -38,7 +39,7 @@ export const GEMINI_PROMPTS = {
     
     Only include fields that have actual data. Be precise with numbers and units.
   `,
-  
+
   GENERATE_DAILY_SUMMARY: `
     You are a health insights assistant. Based on the following health data from the past 24 hours, provide a concise daily summary.
     
